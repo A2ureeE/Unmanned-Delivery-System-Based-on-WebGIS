@@ -103,33 +103,43 @@
             <div class="panel-header">
                 <h2 style="margin:0; border:none; padding:0;">🚐 任务控制台</h2>
 
-                <!-- 志愿者状态显示 (New) -->
-                <div id="volunteer-status" class="volunteer-badge" title="图书馆志愿者当前服务人数">
-                    <span class="volunteer-icon">👥</span>
-                    <span class="volunteer-label">志愿者:</span>
-                    <span id="volunteer-count">--</span>
-                </div>
+                <div style="display: flex; gap: 8px;">
+                    <!-- Follow Car Button (New) -->
+                    <button id="follow-car-btn" class="neumorphic-btn icon-only"
+                        style="width:32px; height:32px; min-width:32px;" title="跟随车辆">
+                        <svg class="neu-icon" viewBox="0 0 24 24" style="width:16px;height:16px;">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path
+                                d="M12 2a10 10 0 0 0-10 10c0 5.523 4.477 10 10 10s10-4.477 10-10a10 10 0 0 0-10-10zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z">
+                            </path>
+                            <line x1="12" y1="2" x2="12" y2="6"></line>
+                            <line x1="12" y1="18" x2="12" y2="22"></line>
+                            <line x1="2" y1="12" x2="6" y2="12"></line>
+                            <line x1="18" y1="12" x2="22" y2="12"></line>
+                        </svg>
+                    </button>
 
-                <button id="theme-toggle" class="neumorphic-btn icon-only"
-                    style="width:32px; height:32px; min-width:32px;" title="切换明暗模式">
-                    <!-- Sun Icon (Default/Light) -->
-                    <svg id="theme-icon-light" class="neu-icon" viewBox="0 0 24 24" style="width:16px;height:16px;">
-                        <circle cx="12" cy="12" r="5"></circle>
-                        <line x1="12" y1="1" x2="12" y2="3"></line>
-                        <line x1="12" y1="21" x2="12" y2="23"></line>
-                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                        <line x1="1" y1="12" x2="3" y2="12"></line>
-                        <line x1="21" y1="12" x2="23" y2="12"></line>
-                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                    </svg>
-                    <!-- Moon Icon (Dark - Hidden by default) -->
-                    <svg id="theme-icon-dark" class="neu-icon" viewBox="0 0 24 24"
-                        style="width:16px;height:16px; display:none;">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                    </svg>
-                </button>
+                    <button id="theme-toggle" class="neumorphic-btn icon-only"
+                        style="width:32px; height:32px; min-width:32px;" title="切换明暗模式">
+                        <!-- Sun Icon (Default/Light) -->
+                        <svg id="theme-icon-light" class="neu-icon" viewBox="0 0 24 24" style="width:16px;height:16px;">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <line x1="12" y1="1" x2="12" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="23"></line>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                            <line x1="1" y1="12" x2="3" y2="12"></line>
+                            <line x1="21" y1="12" x2="23" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                        </svg>
+                        <!-- Moon Icon (Dark - Hidden by default) -->
+                        <svg id="theme-icon-dark" class="neu-icon" viewBox="0 0 24 24"
+                            style="width:16px;height:16px; display:none;">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <!-- 起点选择区域 -->

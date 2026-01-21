@@ -134,6 +134,7 @@ let lastStatusState = { keyword: 'idle', text: '空闲' }; // 记录紧急停车
 
 // 小车初始停靠位置（每次加载随机生成）
 let carInitPosition = null;
+let isFollowingCar = false; // 是否正在跟随小车视角
 
 // ============================================
 // 2. 地图初始化流程
@@ -954,6 +955,38 @@ function initControls() {
         });
     }
 
+    // 绑定跟随车辆按钮 (New)
+    const followBtn = document.getElementById('follow-car-btn');
+    if (followBtn) {
+        followBtn.addEventListener('click', function () {
+            if (isFollowingCar) {
+                // Determine if we should toggle OFF? 
+                // User requirement: "Button: Follow Vehicle". Usually implies "Turn On".
+                // If already on, maybe re-center? 
+                // Let's implement toggle OFF for completeness if they click it again, 
+                // OR just re-center. "Follow Vehicle" suggests ACTION.
+                // Given the requirement "When user drags... follow cancelled", 
+                // clicking this button should RESUME follow.
+                // Let's make it enable follow if disabled, or re-center if enabled.
+                enableCameraFollow();
+            } else {
+                if (!carMarker) {
+                    showAlert("车辆未初始化");
+                    return;
+                }
+                enableCameraFollow();
+            }
+        });
+    }
+
+    // Map Drag Listener to interrupt follow
+    map.on('dragstart', function () {
+        if (isFollowingCar) {
+            disableCameraFollow();
+            // showToast("已停止跟随视角"); // Optional feedback
+        }
+    });
+
     // 填充下拉菜单 - 根据志愿者数量决定是否禁用图书馆
     const volunteerCount = getLibraryVolunteerCount();
 
@@ -1050,18 +1083,24 @@ function initControls() {
         const endVal = endSelect.value;
         const volunteerCount = getLibraryVolunteerCount();
 
-        // 更新送货点下拉 - 禁用与取货点相同的选项
+        // 更新送货点下拉 - 禁用与取货点相同的选项，同时保持永久禁用的选项
         Array.from(endSelect.options).forEach(opt => {
-            if (opt.value && opt.value === startVal) {
+            const loc = locations.find(l => l.id === opt.value);
+            const isPermanentlyDisabled = loc && loc.disabled;
+
+            if ((opt.value && opt.value === startVal) || isPermanentlyDisabled) {
                 opt.disabled = true;
             } else {
                 opt.disabled = false;
             }
         });
 
-        // 更新取货点下拉 - 禁用与送货点相同的选项
+        // 更新取货点下拉 - 禁用与送货点相同的选项，同时保持永久禁用的选项
         Array.from(startSelect.options).forEach(opt => {
-            if (opt.value && opt.value === endVal) {
+            const loc = locations.find(l => l.id === opt.value);
+            const isPermanentlyDisabled = loc && loc.disabled;
+
+            if ((opt.value && opt.value === endVal) || isPermanentlyDisabled) {
                 opt.disabled = true;
             } else {
                 opt.disabled = false;
@@ -1088,6 +1127,12 @@ function initControls() {
             updateMarkerHighlight(final, true);
 
             updateDisabledOptions();
+
+            // Auto Zoom to Selected Start Point
+            const loc = locations.find(l => l.id === final);
+            if (loc && map) {
+                smoothZoom(loc.position, 18); // Smooth close up zoom
+            }
         });
     });
 
@@ -1103,6 +1148,12 @@ function initControls() {
             updateMarkerHighlight(final, true);
 
             updateDisabledOptions();
+
+            // Auto Zoom to Selected End Point
+            const loc = locations.find(l => l.id === final);
+            if (loc && map) {
+                smoothZoom(loc.position, 18); // Smooth close up zoom
+            }
         });
     });
 
@@ -1377,6 +1428,8 @@ function planTwoStageRoute(carPos, pickupPos, deliveryPos, viaPoints = []) {
             // 开始移动到取货点，到达后等待确认
             startCarAnimationToPickup(pathArr, distance);
 
+            // Start follow is handled inside startCarAnimationToPickup
+
             // Show waiting state immediately
             updateBottomIsland(ISLAND_STATES.WAITING);
         } else {
@@ -1414,10 +1467,16 @@ function startCarAnimationToPickup(path, distance) {
         circlable: false
     });
 
+    // Enable Camera Follow
+    enableCameraFollow();
+
     // 到达取货点后的处理
     carMarker.on('movealong', function onArrivePickup() {
         // 移除此监听器，避免重复触发
         carMarker.off('movealong', onArrivePickup);
+
+        // Stop Camera Follow (Wait at pickup)
+        disableCameraFollow();
 
         updateStatus('waiting', '等待装载书籍...');
 
@@ -1486,6 +1545,8 @@ function executeLoadAndContinue(pending) {
         riding.search(pending.pickupPos, pending.deliveryPos, function (status, result) {
             if (status === 'complete') {
                 onRouteSuccess(result);
+                // Re-enable follow for second leg
+                enableCameraFollow();
             } else {
                 updateStatus('error', '送货路径规划失败');
                 showAlert('送货路径规划失败', "❌ 错误");
@@ -1505,6 +1566,7 @@ function endCurrentTask() {
     // 停止小车移动
     if (carMarker) {
         carMarker.stopMove();
+        disableCameraFollow(); // Ensure follow stops
     }
 
     // 清除路径显示
@@ -1587,6 +1649,81 @@ function updateCallButtonState() {
 function planFullRoute(carPos, pickupPos, deliveryPos) {
     // 使用途径点规划：当前位置 → 取货点 → 送货点
     planRouteWithWaypoints(carPos, deliveryPos, [pickupPos]);
+}
+
+/**
+ * 开启摄像头跟随模式
+ */
+function enableCameraFollow() {
+    if (!carMarker || !map) return;
+
+    isFollowingCar = true;
+
+    // Fix: Use instant setCenter to prevent "twitching" conflict with panTo animation
+    // Reverted smooth zoom duration to avoid jitter during movement
+    const carPos = carMarker.getPosition();
+    map.setCenter(carPos); // Instant snap to target
+    map.setZoom(19); // Standard zoom (avoids conflict with center updates)
+
+    // Listener for real-time following
+    carMarker.on('moving', onCarMoving);
+
+    // Update Button Style (Active)
+    const followBtn = document.getElementById('follow-car-btn');
+    if (followBtn) {
+        followBtn.style.opacity = '1';
+        followBtn.style.color = '#3498db'; // Active Blue
+        followBtn.classList.add('active-follow');
+    }
+}
+
+/**
+ * Helper for smooth zoom and pan
+ */
+function smoothZoom(position, zoomLevel) {
+    if (!map) return;
+    // Prefer panTo for smooth "fly" effect, and setZoom separately
+    // Duration: 1200ms, Easing: easeOutQuint (non-linear)
+    map.setZoom(zoomLevel);
+    map.panTo(position);
+    // Note: AMap 2.0 setZoom/panTo default animation is usually good, 
+    // but explicit duration gives better control if API supports it.
+    // map.setZoom(zoom, false, 1200); 
+    // map.panTo(pos, 1200, 'easeOutQuint');
+    // Let's force the parameters for smoother feel.
+    map.setZoom(zoomLevel, false, 1200);
+    map.panTo(position, 1200, 'easeOutQuint');
+}
+
+/**
+ * 关闭摄像头跟随模式
+ */
+function disableCameraFollow() {
+    isFollowingCar = false;
+    if (carMarker) {
+        carMarker.off('moving', onCarMoving);
+    }
+
+    // Update Button Style (Inactive)
+    const followBtn = document.getElementById('follow-car-btn');
+    if (followBtn) {
+        followBtn.style.opacity = ''; // Reset opacity to default (1.0)
+        followBtn.style.color = ''; // Reset color
+        followBtn.classList.remove('active-follow');
+    }
+}
+
+/**
+ * 车辆移动时的回调（用于更新地图中心）
+ */
+function onCarMoving(e) {
+    if (isFollowingCar && map) {
+        // e.target is the marker
+        // But passed event object might contain passedPos or we just use marker pos
+        // AMap 'moving' event usually provides the current position
+        // Safest is to just get position from marker or event target
+        map.setCenter(carMarker.getPosition());
+    }
 }
 
 /**

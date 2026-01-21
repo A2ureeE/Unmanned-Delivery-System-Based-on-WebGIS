@@ -82,7 +82,10 @@ const DeviceAdapter = {
             // Element replacement or cloneNode is nuclear. 
             // Better to just set a flag or be idempotent.
             if (!this.headerListenerAdded) {
-                header.addEventListener('click', () => {
+                header.addEventListener('click', (e) => {
+                    // Prevent toggling if clicked on a button (like camera or theme toggle)
+                    if (e.target.closest('button')) return;
+
                     // Only toggle if in vertical mode
                     const isVertical = this.body.classList.contains('vertical-mode');
                     if (isVertical) {
