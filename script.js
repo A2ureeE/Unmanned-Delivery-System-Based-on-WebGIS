@@ -243,12 +243,19 @@ function initWeather() {
     const tempEl = weatherDisplay.querySelector('.weather-temp');
     const textEl = weatherDisplay.querySelector('.weather-text');
 
+    // [New] Nav Weather Row Elements
+    const navWeatherRow = document.getElementById('nav-weather-row');
+    const navIconEl = navWeatherRow.querySelector('.weather-icon');
+    const navTempEl = navWeatherRow.querySelector('.weather-temp');
+    const navTextEl = navWeatherRow.querySelector('.weather-text');
+
     // Default state
     weatherDisplay.style.display = 'flex';
 
     if (!AMapObj || !AMapObj.Weather) {
         console.warn('AMap Weather plugin not available.');
         textEl.textContent = '加载失败';
+        if (navTextEl) navTextEl.textContent = '加载失败';
         return;
     }
 
@@ -257,23 +264,28 @@ function initWeather() {
     // 查询南京市天气 (可以改成动态城市)
     weather.getLive('南京市', function (err, data) {
         if (!err && data.info === 'OK') {
-            const { weather: weatherState, temperature } = data;
-            // const weatherState = "雪"; // 强制设置为雪天用于测试
-
-            // Debug: Uncomment to test bad weather
-            // const weatherState = "雨"; 
+            const { weather: weatherStateRaw, temperature } = data;
+            // 使用高德地图 API 返回的真实天气状态
+            const weatherState = weatherStateRaw;
 
             tempEl.textContent = `${temperature}°C`;
             textEl.textContent = weatherState;
 
+            // Sync to Nav Row
+            if (navTempEl) navTempEl.textContent = `${temperature}°C`;
+            if (navTextEl) navTextEl.textContent = weatherState;
+
             // Simple mapping for icons
-            if (weatherState.includes('晴')) iconEl.textContent = '☀️';
-            else if (weatherState.includes('云') || weatherState.includes('阴')) iconEl.textContent = '☁️';
-            else if (weatherState.includes('雨')) iconEl.textContent = '🌧️';
-            else if (weatherState.includes('雪')) iconEl.textContent = '❄️';
-            else if (weatherState.includes('雷')) iconEl.textContent = '⚡';
-            else if (weatherState.includes('雾') || weatherState.includes('霾')) iconEl.textContent = '🌫️';
-            else iconEl.textContent = '🌤️';
+            let iconChar = '🌤️';
+            if (weatherState.includes('晴')) iconChar = '☀️';
+            else if (weatherState.includes('云') || weatherState.includes('阴')) iconChar = '☁️';
+            else if (weatherState.includes('雨')) iconChar = '🌧️';
+            else if (weatherState.includes('雪')) iconChar = '❄️';
+            else if (weatherState.includes('雷')) iconChar = '⚡';
+            else if (weatherState.includes('雾') || weatherState.includes('霾')) iconChar = '🌫️';
+
+            iconEl.textContent = iconChar;
+            if (navIconEl) navIconEl.textContent = iconChar;
 
             // Trigger Visual Effects (New)
             updateWeatherEffect(weatherState);
@@ -294,6 +306,7 @@ function initWeather() {
 
         } else {
             textEl.textContent = '获取失败';
+            if (navTextEl) navTextEl.textContent = '获取失败';
         }
     });
 }
@@ -324,31 +337,53 @@ window.updateWeatherEffect = updateWeatherEffect;
 function handleBadWeather(weatherState) {
     isWeatherBad = true;
     const weatherDisplay = document.getElementById('weather-display');
-    const textEl = weatherDisplay.querySelector('.weather-text');
+    const textEl = weatherDisplay ? weatherDisplay.querySelector('.weather-text') : null;
+    const topNav = document.getElementById('top-nav'); // [New] for Vertical Mode
+    const navTextEl = topNav ? topNav.querySelector('.weather-text') : null; // [New]
 
-    weatherDisplay.classList.add('bad-weather');
-    textEl.textContent = `${weatherState} (暂停运营)`;
+    if (weatherDisplay) {
+        weatherDisplay.classList.add('bad-weather');
+        if (textEl) textEl.textContent = `${weatherState} (暂停运营)`;
+    }
+
+    // [New] Apply to Top Nav
+    if (topNav) {
+        topNav.classList.add('bad-weather');
+        if (navTextEl) navTextEl.textContent = `${weatherState} (暂停运营)`; // Update nav text too
+    }
 
     // Disable call button
     const callBtn = document.getElementById('call-btn');
     if (callBtn) {
-        callBtn.style.opacity = '0.6';
-        callBtn.style.cursor = 'not-allowed';
-        callBtn.querySelector('span').textContent = "天气恶劣 暂停服务";
-    }
+        const btnTextEl = callBtn.querySelector('span');
+        if (btnTextEl) btnTextEl.textContent = "暂停服务";
 
-    // Auto return to depot
-    returnToDepot();
+        callBtn.classList.add('disabled');
+        callBtn.style.opacity = '0.7';
+        callBtn.style.cursor = 'not-allowed';
+    }
 }
 
+/**
+ * 恢复呼叫按钮正常状态
+ */
 function restoreCallButton() {
     const callBtn = document.getElementById('call-btn');
+    const weatherDisplay = document.getElementById('weather-display');
+    const topNav = document.getElementById('top-nav'); // [New]
+
+    if (weatherDisplay) weatherDisplay.classList.remove('bad-weather');
+    if (topNav) topNav.classList.remove('bad-weather'); // [New]
+
     if (callBtn) {
-        callBtn.style.opacity = '1';
-        callBtn.style.cursor = 'pointer';
-        callBtn.querySelector('span').textContent = "呼叫无人车";
+        callBtn.classList.remove('disabled');
+        // callBtn.disabled = false;
+
+        // Reset text based on task state
+        updateCallButtonState();
     }
 }
+
 
 /**
  * Check forecast for upcoming bad weather
@@ -632,7 +667,8 @@ function returnToDepot() {
                 carMarker.moveAlong(pathArr, {
                     speed: 30,           // 回库速度快一些
                     autoRotation: false,
-                    circlable: false
+                    circlable: false,
+                    easing: function (k) { return k; }
                 });
 
                 // 监听到达事件
@@ -1464,7 +1500,8 @@ function startCarAnimationToPickup(path, distance) {
     carMarker.moveAlong(path, {
         speed: 20,
         autoRotation: false,
-        circlable: false
+        circlable: false,
+        easing: function (k) { return k; }
     });
 
     // Enable Camera Follow
@@ -1900,6 +1937,25 @@ function extractPathFromRoute(route) {
         path.push(...route.path);
     }
 
+    // [New] Clean up path: Remove duplicates and very close points (< 0.5m)
+    if (path.length > 1) {
+        const uniquePath = [path[0]];
+        for (let i = 1; i < path.length; i++) {
+            const last = uniquePath[uniquePath.length - 1];
+            const current = path[i];
+            // Simple distance check (approximate meter conversion for performance)
+            // 1 degree lat ~= 111km, 1 degree lng ~= 111km * cos(lat)
+            const dx = (current.lng - last.lng) * 111000 * Math.cos(last.lat * Math.PI / 180);
+            const dy = (current.lat - last.lat) * 111000;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist > 0.5) { // Threshold: 0.5 meter
+                uniquePath.push(current);
+            }
+        }
+        return uniquePath;
+    }
+
     return path;
 }
 
@@ -1981,8 +2037,9 @@ function startCarAnimation(path, totalDistance, speedKmh = 20) {
     // 参数2: 配置对象 { speed: 速度(km/h), autoRotation: 是否自动旋转 }
     carMarker.moveAlong(path, {
         speed: speedKmh,           // 移动速度，单位：km/h
-        autoRotation: false,       // 是否自动旋转（小车图标朝向）
-        circlable: false           // 是否循环播放
+        autoRotation: false,       // Revert to false to fix twitching
+        circlable: false,          // 是否循环播放
+        easing: function (k) { return k; }
     });
 
     // 监听移动结束事件

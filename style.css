@@ -29,7 +29,7 @@
     --font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
 
     /* Glassmorphism System */
-    --glass-bg: rgba(255, 255, 255, 0.45);
+    --glass-bg: rgba(255, 255, 255, 0.60000);
     --glass-border: 1px solid rgba(255, 255, 255, 0.6);
     --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
     --glass-blur: blur(20px) saturate(180%);
@@ -386,9 +386,11 @@ body {
 }
 
 [data-theme="dark"] .glass-nav {
-    background: rgba(30, 41, 59, 0.95);
+    background: rgba(30, 41, 59, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
 /* Hover effect for the "Island" */
@@ -1448,19 +1450,22 @@ button {
 }
 
 [data-theme="dark"] #status-panel {
-    background: #2d3748;
-    border: 1px solid #4a5568;
+    background: rgba(45, 55, 72, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 [data-theme="dark"] .loading-panel {
-    background: #2c2618;
-    border-color: #b7791f;
+    background: rgba(44, 38, 24, 0.6);
+    border-color: rgba(183, 121, 31, 0.5);
     color: #f6e05e;
+    backdrop-filter: blur(5px);
 }
 
 [data-theme="dark"] .transport-code-row {
-    background: #2c2618;
-    border-bottom: 1px solid #b7791f;
+    background: rgba(44, 38, 24, 0.4);
+    border-bottom: 1px solid rgba(183, 121, 31, 0.5);
 }
 
 [data-theme="dark"] .loading-hint {
@@ -1485,6 +1490,7 @@ button {
 [data-theme="dark"] #control-panel {
     background: var(--glass-bg);
     border-color: rgba(255, 255, 255, 0.1);
+    border-bottom-color: transparent;
 }
 
 /* Fix Camera Buttons in Dark Mode */
@@ -2002,25 +2008,12 @@ button {
 }
 
 /* Sunlight Effect */
+/* Sunlight Effect Removed per request */
 #weather-effect-overlay.weather-sun {
-    display: block !important;
-    background: radial-gradient(circle at 10% 10%, rgba(255, 255, 150, 0.15) 0%, transparent 40%),
-        radial-gradient(circle at 90% 90%, rgba(255, 200, 50, 0.1) 0%, transparent 50%);
-    box-shadow: inset 0 0 100px rgba(255, 220, 100, 0.1);
-    animation: sun-glimmer 12s ease-in-out infinite;
+    display: none !important;
 }
 
-@keyframes sun-glimmer {
-
-    0%,
-    100% {
-        opacity: 0.4;
-    }
-
-    50% {
-        opacity: 0.7;
-    }
-}
+/* @keyframes sun-glimmer removed */
 
 /* Snow Effect */
 #weather-effect-overlay.weather-snow {
@@ -2129,9 +2122,11 @@ button {
 }
 
 [data-theme="dark"] .dynamic-island-bottom {
-    background: rgba(30, 41, 59, 0.95);
+    background: rgba(30, 41, 59, 0.6);
     border-color: rgba(255, 255, 255, 0.1);
     box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
 .dynamic-island-bottom.hidden {
@@ -2644,9 +2639,12 @@ body.vertical-mode #version-controls {
         justify-content: center;
         gap: 8px;
 
-        background: rgba(255, 255, 255, 0.95);
-        border: 1px solid rgba(255, 255, 255, 0.8);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+        /* Glassmorphism effect - must be included for vertical mode */
+        background: var(--glass-bg);
+        border: var(--glass-border);
+        box-shadow: var(--glass-shadow);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
     }
 
     .nav-left {
@@ -2707,8 +2705,17 @@ body.vertical-mode #version-controls {
         z-index: 900;
     }
 
-    .weather-text {
+    /* Hide weather text only in #weather-display widget, NOT in #nav-weather-row */
+    #weather-display .weather-text {
         display: none;
+    }
+
+    /* Ensure #nav-weather-row weather text remains visible */
+    #nav-weather-row .weather-text {
+        display: inline !important;
+        white-space: nowrap;
+        overflow: visible;
+        text-overflow: clip;
     }
 
     /* --- 3. Control Panel (Bottom Sheet) --- */
@@ -2798,10 +2805,98 @@ body.vertical-mode #version-controls {
     width: 90%;
     max-width: 400px;
     border-radius: 30px;
-    padding: 8px 16px;
+    padding: 12px 16px;
     height: auto;
-    flex-wrap: wrap;
+    flex-direction: column;
+    /* Stack layout */
     justify-content: center;
+    gap: 10px;
+}
+
+.vertical-mode #nav-weather-row {
+    display: flex !important;
+    /* Show in vertical mode */
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    width: 100%;
+}
+
+[data-theme="dark"] .vertical-mode #nav-weather-row {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.vertical-mode .weather-icon {
+    font-size: 20px;
+}
+
+.vertical-mode .weather-temp {
+    font-weight: bold;
+    font-size: 16px;
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .vertical-mode .weather-temp {
+    color: #e0e0e0;
+}
+
+.vertical-mode .weather-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .vertical-mode .weather-text {
+    color: #a0aec0;
+}
+
+/* Fix Text Truncation */
+.vertical-mode .weather-text,
+.vertical-mode .weather-temp,
+.vertical-mode .weather-icon {
+    white-space: normal;
+    /* Allow wrap */
+    overflow: visible;
+    /* Ensure nothing is hidden */
+    text-overflow: clip;
+    text-align: center;
+    line-height: normal;
+}
+
+/* Allow container to expand if needed, but primarily ensure flex behavior is correct */
+.vertical-mode #nav-weather-row {
+    /* Allow wrapping if absolutely necessary */
+    flex-wrap: wrap;
+    height: auto;
+}
+
+/* --- Bad Weather Warning for Top Nav (Vertical Mode) --- */
+.vertical-mode .glass-nav.bad-weather {
+    /* No background override - keep glass effect */
+    border: 1px solid rgba(220, 53, 69, 0.6);
+    /* Red border */
+    box-shadow: 0 0 20px rgba(220, 53, 69, 0.5), inset 0 0 10px rgba(220, 53, 69, 0.1);
+    animation: pulse-red-nav 2s infinite;
+}
+
+[data-theme="dark"] .vertical-mode .glass-nav.bad-weather {
+    border-color: rgba(255, 100, 100, 0.5);
+    /* No background change */
+}
+
+@keyframes pulse-red-nav {
+    0% {
+        box-shadow: 0 8px 32px rgba(220, 53, 69, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 8px 40px rgba(220, 53, 69, 0.6);
+    }
+
+    100% {
+        box-shadow: 0 8px 32px rgba(220, 53, 69, 0.3);
+    }
 }
 
 .vertical-mode #control-panel {
@@ -2833,53 +2928,20 @@ body.vertical-mode #version-controls {
 }
 
 /* --- 5. Weather Widget (Bottom Left - Aligned with Version Switch) --- */
+/* --- 5. Weather Widget --- */
 .vertical-mode #weather-display {
-    /* Reset manual manual positioning if any */
-    top: auto;
-    right: auto;
-    left: auto;
-    transform: none;
-
-    /* Position relative to bottom */
-    position: absolute;
-    bottom: 90px;
-    /* Match #version-controls bottom */
-    left: 20px;
-    /* Bottom Left Corner */
-
-    /* Auto width (Compact) */
-    width: auto;
-    max-width: none;
-
-    /* Box Styling */
-    padding: 6px 12px;
-    border-radius: 20px;
-    background: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.8);
-
-    /* Flex Alignment */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-
-    z-index: 900;
+    display: none !important;
+    /* Hide floating widget in vertical mode */
 }
 
-/* Dark Mode Override for Vertical Mode Weather Widget */
-[data-theme="dark"] .vertical-mode #weather-display {
-    background: rgba(30, 30, 30, 0.95) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: #e0e0e0 !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
-}
+
 
 [data-theme="dark"] .vertical-mode #weather-display .weather-temp,
 [data-theme="dark"] .vertical-mode #weather-display .weather-text,
 [data-theme="dark"] .vertical-mode #weather-display .weather-icon {
     color: #e0e0e0 !important;
 }
+
 /* Disabled Custom Option Style */
 .custom-option.disabled {
     background-color: #f5f5f5;
