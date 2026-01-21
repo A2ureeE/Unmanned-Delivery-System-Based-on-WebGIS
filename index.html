@@ -34,7 +34,7 @@
 <body>
     <!-- 
         地图容器
-        高德地图会将地图渲染到这个 div 中
+        高德地图会将地图渲染到这个 div 中-*/
         需要设置固定的宽高，这里使用 CSS 设为全屏
     -->
     <!-- 
@@ -88,6 +88,13 @@
                 <span class="weather-icon">--</span>
                 <span class="weather-temp">--°C</span>
                 <span class="weather-text">加载中...</span>
+                <button id="nav-emergency-btn" class="nav-stop-btn" disabled style="opacity: 0.5; cursor: not-allowed;">
+                    <svg class="neu-icon" viewBox="0 0 24 24" style="width:14px;height:14px;">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <rect x="9" y="9" width="6" height="6" rx="1"></rect>
+                    </svg>
+                    紧急停车
+                </button>
             </div>
         </nav>
 

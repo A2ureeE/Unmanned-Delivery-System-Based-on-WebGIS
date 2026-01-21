@@ -2950,3 +2950,79 @@ body.vertical-mode #version-controls {
     pointer-events: none;
     font-style: italic;
 }
+
+/* ========================================
+   New Emergency Stop Button in Nav (Vertical Mode)
+   ======================================== */
+.nav-weather-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    padding-left: 10px;
+    border-left: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .nav-weather-row {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-stop-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 30px;
+
+    background: linear-gradient(135deg, #FF6B6B 0%, #FF4757 100%);
+    color: white;
+
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(255, 71, 87, 0.3);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    white-space: nowrap;
+
+    /* Separation from weather text */
+    margin-left: 12px;
+}
+
+.nav-stop-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(255, 71, 87, 0.45);
+    filter: brightness(1.05);
+}
+
+.nav-stop-btn:active {
+    transform: translateY(0);
+}
+
+.nav-stop-btn svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.nav-stop-btn.resume-mode {
+    background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+    box-shadow: 0 4px 10px rgba(46, 204, 113, 0.3);
+}
+
+.nav-stop-btn.resume-mode:hover {
+    box-shadow: 0 6px 15px rgba(46, 204, 113, 0.45);
+}
+
+.nav-stop-btn:disabled,
+.nav-stop-btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #95a5a6 !important;
+    /* Greyish */
+    box-shadow: none;
+    transform: none;
+    pointer-events: none;
+}

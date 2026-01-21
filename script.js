@@ -2164,27 +2164,39 @@ function updateStatus(stateKeyword, text) {
 
     // 更新紧急停车按钮状态
     const emergencyBtn = document.getElementById('emergency-stop-btn');
-    if (emergencyBtn) {
-        // 只有在计算、移动、等待(任务执行中)时才允许紧急停车
-        // 排除 idle, arrived, error
-        // 注意：Emergency 状态下 keyword 是 'emergency'，不在此列，但下方 checks covers it
-        const isTaskRunning = ['calculating', 'moving', 'waiting'].includes(stateKeyword);
+    const navEmergencyBtn = document.getElementById('nav-emergency-btn'); // [New] Nav Button
 
-        if (isTaskRunning) {
+    // 只有在计算、移动、等待(任务执行中)时才允许紧急停车
+    // 排除 idle, arrived, error
+    // 注意：Emergency 状态下 keyword 是 'emergency'，不在此列，但下方 checks covers it
+    const isTaskRunning = ['calculating', 'moving', 'waiting'].includes(stateKeyword);
+    const shouldEnable = isTaskRunning || (typeof isEmergencyStopped !== 'undefined' && isEmergencyStopped);
+
+    if (emergencyBtn) {
+        if (shouldEnable) {
             emergencyBtn.disabled = false;
             emergencyBtn.style.opacity = '1';
             emergencyBtn.style.cursor = 'pointer';
         } else {
-            // 如果不在运行任务，且当前不是处于"已紧急停车"状态（避免紧急停车后立即被disable无法恢复）
-            if (typeof isEmergencyStopped !== 'undefined' && isEmergencyStopped) {
-                emergencyBtn.disabled = false;
-                emergencyBtn.style.opacity = '1';
-                emergencyBtn.style.cursor = 'pointer';
-            } else {
-                emergencyBtn.disabled = true;
-                emergencyBtn.style.opacity = '0.5';
-                emergencyBtn.style.cursor = 'not-allowed';
-            }
+            emergencyBtn.disabled = true;
+            emergencyBtn.style.opacity = '0.5';
+            emergencyBtn.style.cursor = 'not-allowed';
+        }
+    }
+
+    // Update Nav Button (Vertical Mode)
+    if (navEmergencyBtn) {
+        if (shouldEnable) {
+            navEmergencyBtn.disabled = false;
+            // let CSS handle style or force it if needed
+            navEmergencyBtn.style.opacity = '1';
+            navEmergencyBtn.style.cursor = 'pointer';
+            navEmergencyBtn.style.pointerEvents = 'auto';
+        } else {
+            navEmergencyBtn.disabled = true;
+            navEmergencyBtn.style.opacity = '0.5';
+            navEmergencyBtn.style.cursor = 'not-allowed';
+            navEmergencyBtn.style.pointerEvents = 'none'; // Ensure no clicks
         }
     }
 }
@@ -2592,24 +2604,50 @@ function updateEmergencyButtonState(btn) {
     const iconSvg = btn.querySelector('svg');
     const textSpan = btn.querySelector('span');
 
+    // Also update the Nav Button (Vertical Mode)
+    const navBtn = document.getElementById('nav-emergency-btn');
+
     if (isEmergencyStopped) {
         btn.classList.remove('danger');
         btn.classList.add('resume');
         textSpan.textContent = '恢复运行';
-        // Change icon to play
         iconSvg.innerHTML = `
             <circle cx="12" cy="12" r="10"></circle>
             <polygon points="10 8 16 12 10 16 10 8"></polygon>
         `;
+
+        if (navBtn) {
+            navBtn.classList.add('resume-mode');
+            const navText = navBtn.childNodes[navBtn.childNodes.length - 1]; // Text node usually at end or explicitly select
+            // Ideally we wrap text in span, but here it's text node. 
+            // Simple replace innerHTML for icon+text is safer.
+            navBtn.innerHTML = `
+                <svg class="neu-icon" viewBox="0 0 24 24" style="width:14px;height:14px;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polygon points="10 8 16 12 10 16 10 8"></polygon>
+                </svg>
+                恢复运行
+            `;
+        }
     } else {
         btn.classList.remove('resume');
         btn.classList.add('danger');
         textSpan.textContent = '紧急停车';
-        // Change icon to stop
         iconSvg.innerHTML = `
             <circle cx="12" cy="12" r="10"></circle>
             <rect x="9" y="9" width="6" height="6" rx="1"></rect>
         `;
+
+        if (navBtn) {
+            navBtn.classList.remove('resume-mode');
+            navBtn.innerHTML = `
+                <svg class="neu-icon" viewBox="0 0 24 24" style="width:14px;height:14px;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <rect x="9" y="9" width="6" height="6" rx="1"></rect>
+                </svg>
+                紧急停车
+            `;
+        }
     }
 }
 
@@ -2675,5 +2713,11 @@ function showConfirmDialog(title, message, onConfirm) {
     const islandContactBtn = document.getElementById('island-contact-btn');
     if (islandContactBtn) {
         islandContactBtn.addEventListener('click', showContactAdminModal);
+    }
+
+    // Bind New Nav Emergency Button
+    const navEmergencyBtn = document.getElementById('nav-emergency-btn');
+    if (navEmergencyBtn) {
+        navEmergencyBtn.addEventListener('click', handleEmergencyStop);
     }
 })();

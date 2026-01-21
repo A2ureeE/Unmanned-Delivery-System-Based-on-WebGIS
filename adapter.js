@@ -31,7 +31,9 @@ const DeviceAdapter = {
             this.body.classList.add('vertical-mode');
             this.body.classList.remove('horizontal-mode');
 
-
+            // Show Nav Weather Row
+            const weatherRow = document.getElementById('nav-weather-row');
+            if (weatherRow) weatherRow.style.display = 'flex';
 
             // Trigger map resize
             if (window.map) setTimeout(() => window.map.resize(), 300);
@@ -39,7 +41,9 @@ const DeviceAdapter = {
             this.body.classList.remove('vertical-mode');
             this.body.classList.add('horizontal-mode');
 
-
+            // Hide Nav Weather Row
+            const weatherRow = document.getElementById('nav-weather-row');
+            if (weatherRow) weatherRow.style.display = 'none';
 
             // Trigger map resize
             if (window.map) setTimeout(() => window.map.resize(), 300);
