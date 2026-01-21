@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校园无人书车调度系统</title>
+
+    <!-- 引入外部样式表 -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- 
+        ============================================
+        ⚠️ 高德地图 API 安全配置
+        如果你有安全密钥，可以在下方填入
+        没有密钥的情况下也可以正常使用基础功能
+        ============================================
+    -->
+    <script type="text/javascript">
+        // 安全密钥配置（Web服务 API 需要）
+        window._AMapSecurityConfig = {
+            securityJsCode: 'c1305ca590d012512519b18ba9393fa8', // 你的安全密钥
+        };
+    </script>
+
+    <!-- 
+        引入高德地图 JS API Loader
+        这是高德地图 2.0 版本推荐的加载方式
+        Loader 可以按需加载地图插件，优化页面性能
+    -->
+    <script src="https://webapi.amap.com/loader.js"></script>
+</head>
+
+<body>
+    <!-- 
+        地图容器
+        高德地图会将地图渲染到这个 div 中
+        需要设置固定的宽高，这里使用 CSS 设为全屏
+    -->
+    <!-- 
+        版本切换控制 (Version Switch Controls)
+        Floating buttons to toggle between simulated modes
+    -->
+
+
+    <!-- App Root Container -->
+    <div id="app-root">
+        <div id="map-container"></div>
+
+        <!-- Weather Effects Overlay (Rain/Snow) -->
+        <div id="weather-effect-overlay"></div>
+
+        <!-- 
+        顶部导航条 (New)
+        显示车辆状态、提取码、货物状态和联系管理员按钮
+    -->
+        <nav id="top-nav" class="glass-nav">
+            <div class="nav-left">
+                <div class="nav-item">
+                    <span class="nav-label">车辆状态:</span>
+                    <span id="nav-car-status" class="nav-value status-idle">空闲</span>
+                </div>
+                <div class="nav-divider"></div>
+                <div class="nav-item">
+                    <span class="nav-label">货物码:</span>
+                    <span id="nav-pickup-code" class="nav-value code-text">-----</span>
+                </div>
+                <div class="nav-divider"></div>
+                <div class="nav-item">
+                    <span class="nav-label">货物状态:</span>
+                    <span id="nav-cargo-status" class="nav-value">未装载</span>
+                </div>
+            </div>
+
+            <div class="nav-right">
+                <button id="contact-admin-btn" class="nav-btn">
+                    <svg class="neu-icon" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:6px;">
+                        <path
+                            d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+                        </path>
+                    </svg>
+                    联系管理员
+                </button>
+            </div>
+        </nav>
+
+
+
+        <!-- 
+        控制面板
+        包含起点/终点选择、呼叫按钮和状态显示
+        使用半透明背景，覆盖在地图左上角
+    -->
+        <div id="weather-display" class="glass-card" style="display: none;">
+            <div class="weather-icon">⛅</div>
+            <div class="weather-info">
+                <div class="weather-temp">--°C</div>
+                <div class="weather-text">正在获取...</div>
+            </div>
+        </div>
+
+        <div id="control-panel">
+            <div class="panel-header">
+                <h2 style="margin:0; border:none; padding:0;">🚐 任务控制台</h2>
+
+                <!-- 志愿者状态显示 (New) -->
+                <div id="volunteer-status" class="volunteer-badge" title="图书馆志愿者当前服务人数">
+                    <span class="volunteer-icon">👥</span>
+                    <span class="volunteer-label">志愿者:</span>
+                    <span id="volunteer-count">--</span>
+                </div>
+
+                <button id="theme-toggle" class="neumorphic-btn icon-only"
+                    style="width:32px; height:32px; min-width:32px;" title="切换明暗模式">
+                    <!-- Sun Icon (Default/Light) -->
+                    <svg id="theme-icon-light" class="neu-icon" viewBox="0 0 24 24" style="width:16px;height:16px;">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                    <!-- Moon Icon (Dark - Hidden by default) -->
+                    <svg id="theme-icon-dark" class="neu-icon" viewBox="0 0 24 24"
+                        style="width:16px;height:16px; display:none;">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- 起点选择区域 -->
+            <div class="form-group">
+                <label for="start-select" style="display:flex;align-items:center;gap:5px;">
+                    <svg class="neu-icon" style="width:14px;height:14px;color:#f39c12;" viewBox="0 0 24 24">
+                        <path
+                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                        </path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                    选择取货点：
+                </label>
+                <select id="start-select">
+                    <option value="">-- 请选择取货点 --</option>
+                    <!-- 选项将由 JavaScript 动态填充 -->
+                </select>
+            </div>
+
+            <!-- 终点选择区域 -->
+            <div class="form-group">
+                <label for="end-select" style="display:flex;align-items:center;gap:5px;">
+                    <svg class="neu-icon" style="width:14px;height:14px;color:#e74c3c;" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="6"></circle>
+                        <circle cx="12" cy="12" r="2"></circle>
+                    </svg>
+                    选择送货点：
+                </label>
+                <select id="end-select">
+                    <option value="">-- 请选择送货点 --</option>
+                    <!-- 选项将由 JavaScript 动态填充 -->
+                </select>
+            </div>
+
+            <div class="subtext route-hint" style="display:flex; align-items:center;">
+                <svg class="neu-icon" viewBox="0 0 24 24"
+                    style="width:14px;height:14px;margin-right:6px; color:#2196F3;">
+                    <path
+                        d="M1 6v14c0 1.1.9 2 2 2h14a1 1 0 0 0 1-1v-4h3a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1h-3V6a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1z">
+                    </path>
+                </svg>
+                无人车将从当前位置出发 → 取货 → 送货
+            </div>
+
+            <!-- 路线模式选择 -->
+            <div class="form-group">
+                <label for="mode-select" style="display:flex;align-items:center;justify-content:space-between;">
+                    <div style="display:flex;align-items:center;gap:5px;">
+                        <svg class="neu-icon" style="width:14px;height:14px;color:#3498db;" viewBox="0 0 24 24">
+                            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+                            <line x1="8" y1="2" x2="8" y2="18"></line>
+                            <line x1="16" y1="6" x2="16" y2="22"></line>
+                        </svg>
+                        路线模式：
+                    </div>
+                    <!-- 已选节点 Badge -->
+                    <span id="custom-nodes-badge" class="selection-badge hidden">
+                        已选节点: <span id="custom-count">0</span>
+                    </span>
+                </label>
+                <select id="mode-select">
+                    <option value="riding">自动规划</option>
+                    <option value="custom">自定义路径（地图点选）</option>
+                </select>
+                <p class="subtext">自定义模式下，点击地图添加“途径点”，路线将经过这些点。</p>
+            </div>
+
+            <!-- 自定义路径操作按钮 (Neumorphic Row) -->
+            <div class="button-row">
+                <button id="draw-btn" class="neumorphic-btn small" disabled style="opacity: 0.5; cursor: not-allowed;">
+                    <svg class="neu-icon" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:5px;">
+                        <path d="M12 20h9"></path>
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                    </svg>
+                    点选
+                </button>
+                <button id="clear-path-btn" class="neumorphic-btn small" disabled
+                    style="opacity: 0.5; cursor: not-allowed;">
+                    <svg class="neu-icon" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:5px;">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                    清除
+                </button>
+                <button id="history-btn" class="neumorphic-btn small">
+                    <svg class="neu-icon" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:5px;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    记录
+                </button>
+            </div>
+
+            <!-- 呼叫按钮 (Neumorphic) -->
+            <button id="call-btn" class="neumorphic-btn primary full-width">
+                <svg class="neu-icon" viewBox="0 0 24 24">
+                    <rect x="1" y="3" width="15" height="13"></rect>
+                    <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                    <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                    <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                </svg>
+                <span>呼叫无人车</span>
+            </button>
+
+            <!-- 摄像头与紧急停车按钮行 -->
+            <div class="button-row-equal">
+                <button id="camera-btn" class="neumorphic-btn flex-1">
+                    <svg class="neu-icon" viewBox="0 0 24 24">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z">
+                        </path>
+                        <circle cx="12" cy="13" r="4"></circle>
+                    </svg>
+                    <span>无人车视角</span>
+                </button>
+                <button id="emergency-stop-btn" class="neumorphic-btn flex-1 danger" disabled
+                    style="opacity: 0.5; cursor: not-allowed;">
+                    <svg class="neu-icon" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <rect x="9" y="9" width="6" height="6" rx="1"></rect>
+                    </svg>
+                    <span>紧急停车</span>
+                </button>
+            </div>
+
+            <!-- 确认装载区域（默认隐藏，到达取货点后显示） -->
+
+
+            <!-- 状态显示区域 -->
+            <div id="status-panel">
+                <div class="status-item transport-code-row">
+                    <span class="status-label" style="display:flex;align-items:center;gap:4px;">
+                        <svg class="neu-icon" style="width:12px;height:12px;" viewBox="0 0 24 24">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        运输码：
+                    </span>
+                    <span id="transport-code" class="transport-code-inline">-----</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label" style="display:flex;align-items:center;gap:4px;">
+                        <svg class="neu-icon" style="width:12px;height:12px;" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        距离：
+                    </span>
+                    <span id="distance-display">等待计算...</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label" style="display:flex;align-items:center;gap:4px;">
+                        <svg class="neu-icon" style="width:12px;height:12px;" viewBox="0 0 24 24">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                        </svg>
+                        状态：
+                    </span>
+                    <span id="status-display" class="status-idle">空闲</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label" style="display:flex;align-items:center;gap:4px;">
+                        <svg class="neu-icon" style="width:12px;height:12px;" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        预计时间：
+                    </span>
+                    <span id="time-display">等待计算...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 摄像头模态框 -->
+        <div id="camera-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>📷 无人车实时摄像头</h3>
+                    <button id="close-camera-modal" class="modal-close">&times;</button>
+                </div>
+                <div class="camera-feed">
+                    <div class="camera-placeholder">
+                        <div class="camera-icon" style="border:none;">
+                            <svg class="neu-icon" style="width:64px; height:64px; color:#bdc3c7;" viewBox="0 0 24 24">
+                                <path
+                                    d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z">
+                                </path>
+                                <circle cx="12" cy="13" r="4"></circle>
+                            </svg>
+                        </div>
+                        <p class="camera-status">摄像头连接中...</p>
+                        <p class="camera-hint">ROS 接口预留位置</p>
+                        <div class="ros-info">
+                            <code>Topic: /camera/image_raw</code>
+                            <br>
+                            <code>Type: sensor_msgs/Image</code>
+                        </div>
+                    </div>
+                </div>
+                <div class="camera-controls">
+                    <button class="camera-control-btn" disabled>
+                        <span>🔄</span> 刷新画面
+                    </button>
+                    <button class="camera-control-btn" disabled>
+                        <span>📸</span> 截图保存
+                    </button>
+                    <button class="camera-control-btn" disabled>
+                        <span>⚙️</span> 设置
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 自定义提示弹窗 (Alert Modal) -->
+        <div id="alert-modal" class="modal-overlay hidden" style="z-index: 10000;">
+            <div class="modal-content alert-box">
+                <div class="modal-header">
+                    <h3 id="alert-title">提示</h3>
+                </div>
+                <div id="alert-message" class="alert-body">
+                    <!-- 动态内容 -->
+                </div>
+                <div class="alert-footer">
+                    <button id="alert-ok-btn" class="confirm-button">知道了</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 
+        Bottom Dynamic Island (New) 
+        统一底部状态栏：取代原本的 Action Bars
+    -->
+        <div id="bottom-dynamic-island" class="dynamic-island-bottom hidden">
+            <!-- State: Waiting (En Route to Pickup) -->
+            <div id="island-state-waiting" class="island-content hidden">
+                <div class="island-icon-pulse">
+                    <svg class="neu-icon" viewBox="0 0 24 24" style="color:#2196F3;">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                </div>
+                <div class="island-text">
+                    <h3>车辆赶往取货点中...</h3>
+                    <p>请前往指定地点等待车辆到达</p>
+                </div>
+            </div>
+
+            <!-- State: Pickup (Arrived at Pickup) -->
+            <div id="island-state-pickup" class="island-content hidden">
+                <div class="island-info-block">
+                    <span class="label">取件码</span>
+                    <span id="island-pickup-code" class="code-value">-----</span>
+                </div>
+                <div class="island-divider"></div>
+                <button id="island-confirm-load-btn" class="island-action-btn primary">
+                    确认放置完毕
+                </button>
+            </div>
+
+            <!-- State: Moving ( Delivering ) -->
+            <div id="island-state-moving" class="island-content hidden">
+                <div class="island-status-row">
+                    <div class="island-icon-spin">
+                        <svg class="neu-icon" viewBox="0 0 24 24" style="color:#4CAF50;">
+                            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z">
+                            </path>
+                            <path d="M12 6v6l4 2"></path>
+                        </svg>
+                    </div>
+                    <div class="island-text-compact">
+                        <h3>车辆运行中</h3>
+                        <p style="font-size: 11px; opacity: 0.8;">如遇紧急情况请呼叫管理员</p>
+                    </div>
+                </div>
+                <div class="island-divider"></div>
+                <!-- Contact Admin Button (Vertical Mode Only) -->
+                <button id="island-contact-btn" class="neu-icon-btn small" title="联系管理员" style="margin-right: 8px;">
+                    <svg class="neu-icon" viewBox="0 0 24 24" style="width:16px;height:16px; color: #57606a;">
+                        <path
+                            d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+                        </path>
+                    </svg>
+                </button>
+                <div class="island-divider"></div>
+                <div class="island-data-block">
+                    <span class="label">当前速度</span>
+                    <span id="island-speed-display" class="value-highlight">0 km/h</span>
+                </div>
+            </div>
+
+            <!-- State: Arrived (At Destination) -->
+            <div id="island-state-arrived" class="island-content hidden">
+                <div class="island-icon-success">
+                    <svg class="neu-icon" viewBox="0 0 24 24" style="color:#fff;">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                <div class="island-text">
+                    <h3>已到达终点</h3>
+                    <p>请取走您的书籍</p>
+                </div>
+                <button id="island-confirm-delivery-btn" class="island-action-btn success" style="margin-left: 12px;">
+                    确认已取货
+                </button>
+            </div>
+        </div>
+
+        <!-- 底部动作栏 (Action Bar) - DEPRECATED: Replaced by Dynamic Island
+    <div id="loading-confirm-panel" class="action-bar hidden">
+        ...
+    </div>
+    
+    <div id="delivery-confirm-panel" class="action-bar hidden">
+        ...
+    </div>
+    -->
+
+        <!-- 运输历史记录模态框 (History Modal) -->
+        <div id="history-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>📋 运输历史记录</h3>
+                    <button id="close-history-modal" class="modal-close">&times;</button>
+                </div>
+                <div class="history-body" style="padding: 0;">
+                    <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>时间</th>
+                                    <th>取货点</th>
+                                    <th>送货点</th>
+                                    <th>状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-list">
+                                <!-- 历史记录将由 JavaScript 动态填充 -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="no-history-msg" style="padding: 30px; text-align: center; color: #7f8c8d; display: none;">
+                        暂无运输记录
+                    </div>
+                </div>
+                <div class="alert-footer"
+                    style="border-top: 1px solid #e9ecef; justify-content: flex-end; display: flex;">
+                    <button id="clear-history-btn" class="secondary-button" style="width: auto; padding: 8px 16px;">
+                        清空记录
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 引入主脚本文件 -->
+        <script src="script.js"></script>
+        <script src="adapter.js"></script>
+    </div><!-- End of #app-root -->
+</body>
+
+</html>
