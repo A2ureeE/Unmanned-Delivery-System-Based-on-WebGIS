@@ -123,6 +123,7 @@ function getRandomCampusPosition() {
 
 // Global Weather State
 let isWeatherBad = false;
+let weatherCheckInterval = null; // 天气监控定时器
 
 // 任务状态追踪
 let isTaskInProgress = false;   // 是否有任务正在进行中
@@ -262,20 +263,92 @@ function initWeather() {
     const weather = new AMapObj.Weather();
 
     // 查询南京市天气 (可以改成动态城市)
+    // 使用真实天气API
+    fetchRealWeather(weather, weatherDisplay, iconEl, tempEl, textEl, navIconEl, navTempEl, navTextEl);
+
+    // 启动周期性天气监控（每10秒检查一次）
+    startWeatherMonitor();
+}
+
+/**
+ * [TEST] 强制设置为雨天
+ */
+function forceRainyWeather(weatherDisplay, iconEl, tempEl, textEl, navIconEl, navTempEl, navTextEl) {
+    const weatherState = '雨';
+    const temperature = '8';
+
+    tempEl.textContent = `${temperature}°C`;
+    textEl.textContent = weatherState;
+
+    if (navTempEl) navTempEl.textContent = `${temperature}°C`;
+    if (navTextEl) navTextEl.textContent = weatherState;
+
+    iconEl.textContent = '🌧️';
+    if (navIconEl) navIconEl.textContent = '🌧️';
+
+    updateWeatherEffect(weatherState);
+    handleBadWeather(weatherState);
+
+    // [关键] 雨天时立即触发回库 - 延迟执行确保carMarker已初始化
+    setTimeout(() => {
+        if (carMarker) {
+            console.log('[雨天模式] 页面加载检测到恶劣天气，车辆立即回库');
+            returnToDepot();
+        }
+    }, 1000); // 延迟1秒等待地图和小车初始化完成
+}
+
+/**
+ * 启动周期性天气监控
+ * 每10秒检查一次，确保任务进行中能检测到天气变化
+ */
+function startWeatherMonitor() {
+    if (weatherCheckInterval) clearInterval(weatherCheckInterval);
+
+    weatherCheckInterval = setInterval(() => {
+        // 只有任务进行中且天气恶劣时才触发回库
+        if (isTaskInProgress && isWeatherBad && carMarker) {
+            console.log('[天气监控] 检测到恶劣天气，任务进行中，触发回库');
+
+            // 停止当前移动
+            carMarker.stopMove();
+
+            showAlert('检测到恶劣天气，无人车将自动返回车库。当前任务已取消。', '⚠️ 恶劣天气');
+
+            // 重置任务状态
+            isTaskInProgress = false;
+            hasPickedUpGoods = false;
+
+            // 隐藏底部状态岛
+            updateBottomIsland(ISLAND_STATES.HIDDEN);
+
+            // 触发回库
+            returnToDepot();
+
+            // 更新按钮状态
+            updateCallButtonState();
+        }
+    }, 3600000); // 每小时检查一次天气（3600000ms = 1小时）
+}
+
+// 暴露给外部测试
+window.startWeatherMonitor = startWeatherMonitor;
+
+/**
+ * 原始天气API调用（测试完成后使用）
+ */
+function fetchRealWeather(weather, weatherDisplay, iconEl, tempEl, textEl, navIconEl, navTempEl, navTextEl) {
     weather.getLive('南京市', function (err, data) {
         if (!err && data.info === 'OK') {
             const { weather: weatherStateRaw, temperature } = data;
-            // 使用高德地图 API 返回的真实天气状态
             const weatherState = weatherStateRaw;
 
             tempEl.textContent = `${temperature}°C`;
             textEl.textContent = weatherState;
 
-            // Sync to Nav Row
             if (navTempEl) navTempEl.textContent = `${temperature}°C`;
             if (navTextEl) navTextEl.textContent = weatherState;
 
-            // Simple mapping for icons
             let iconChar = '🌤️';
             if (weatherState.includes('晴')) iconChar = '☀️';
             else if (weatherState.includes('云') || weatherState.includes('阴')) iconChar = '☁️';
@@ -287,23 +360,16 @@ function initWeather() {
             iconEl.textContent = iconChar;
             if (navIconEl) navIconEl.textContent = iconChar;
 
-            // Trigger Visual Effects (New)
             updateWeatherEffect(weatherState);
 
-            // Check for bad weather (current)
-            // Rules: Rain (雨), Snow (雪), Storm (暴)
             if (weatherState.includes('雨') || weatherState.includes('雪') || weatherState.includes('暴')) {
                 handleBadWeather(weatherState);
             } else {
-                // If current weather is fine, check forecast for FUTURE bad weather
-                // We use daily forecast as a proxy for "upcoming" since hourly API is limited on free plan
                 checkWeatherForecast(weather, '南京市');
-
                 isWeatherBad = false;
                 weatherDisplay.classList.remove('bad-weather');
                 restoreCallButton();
             }
-
         } else {
             textEl.textContent = '获取失败';
             if (navTextEl) navTextEl.textContent = '获取失败';
@@ -361,6 +427,25 @@ function handleBadWeather(weatherState) {
         callBtn.classList.add('disabled');
         callBtn.style.opacity = '0.7';
         callBtn.style.cursor = 'not-allowed';
+    }
+
+    // [关键] 如果有任务进行中，触发车辆自动回库
+    if (isTaskInProgress && carMarker) {
+        console.log('检测到恶劣天气，车辆自动回库...');
+        showAlert(`检测到${weatherState}天气，无人车将自动返回车库。当前任务已取消。`, '⚠️ 恶劣天气');
+
+        // 停止当前移动
+        carMarker.stopMove();
+
+        // 重置任务状态
+        isTaskInProgress = false;
+        hasPickedUpGoods = false;
+
+        // 隐藏底部状态岛
+        updateBottomIsland(ISLAND_STATES.HIDDEN);
+
+        // 触发回库
+        returnToDepot();
     }
 }
 
